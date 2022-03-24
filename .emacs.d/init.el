@@ -8,7 +8,11 @@
 		     counsel ;; ivy
 		     lsp-mode ;; lsp
 		     lsp-ui
-		     company))
+		     company
+		     rust-mode ;; languages
+		     csharp-mode
+		     magit ;; misc
+		     ))
 
 ;; Add Melpa as the default Emacs Package repository
 ;; only contains a very limited number of packages
@@ -40,8 +44,10 @@
 (evil-leader/set-leader "<SPC>")
 (evil-leader/set-key
   "x" 'counsel-M-x
+  "b" 'counsel-bookmark
+  "g" 'magit-status
+  "h" 'help-for-help
   "q" 'evil-mc-undo-all-cursors
-  "b" 'switch-to-buffer
   "w" 'save-buffer)
 
 (require 'evil)
@@ -70,7 +76,14 @@
 (setq create-lockfiles nil) ;; Disable interlock files (.#file)
 
 (setq-default truncate-lines t) ;; Disable line wrapping
+(setq display-line-numbers-type 'relative)
 (global-display-line-numbers-mode)
+
+(setq desktop-path (list user-emacs-directory)) ;; Save in .emacs.d
+(setq desktop-buffers-not-to-save ".*"
+      desktop-files-not-to-save ".*") ;; Don't save buffers
+(setq desktop-save t) ;; Always save
+(desktop-save-mode t)
 
 (setq scroll-margin 3 ;; Emulate vim like scrolling
   scroll-step 1
@@ -83,11 +96,10 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(wombat))
- '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
  '(evil-undo-system 'undo-redo)
- '(helm-minibuffer-history-key "M-p")
- '(package-selected-packages '(evil-mc-extras lsp-ui lsp-mode evil-leader evil))
+ '(package-selected-packages
+   '(csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
  '(tool-bar-mode nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
