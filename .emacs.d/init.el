@@ -105,7 +105,7 @@
         company-idle-delay 0.0) ;; default is 0.2
   (setq company-format-margin-function 'company-text-icons-margin
         company-text-icons-add-background t)
-  (setq company-global-modes '(not markdown-mode))
+  (setq company-global-modes '(not markdown-mode shell-mode))
   :config
   (keymap-unset company-active-map "C-w")
   (keymap-set company-active-map "TAB" 'company-complete-selection)
