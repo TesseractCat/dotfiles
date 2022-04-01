@@ -34,7 +34,12 @@
         evil-want-C-u-scroll t
         evil-echo-state nil)
   :config
-  (evil-mode t))
+  (evil-mode t)
+  (evil-define-key 'insert 'global (kbd "C-v") (lambda ()
+                                                 (interactive)
+                                                 (evil-paste-before 1 ?+)
+                                                 (call-interactively 'evil-append)
+                                                 )))
 
 (use-package evil-collection
   :after evil
@@ -58,7 +63,14 @@
     "ff" 'find-function
     "q" 'evil-mc-undo-all-cursors
     "s" 'evil-mc-make-cursors-at-search
-    "w" 'save-buffer))
+    "w" 'save-buffer
+    "m" (lambda ()
+          (interactive)
+          (if (math-preview--overlays (point-min) (point-max))
+              (call-interactively 'math-preview-clear-all)
+              (call-interactively 'math-preview-all)
+              ))
+    ))
 
 (use-package evil-mc
   :after evil-leader
@@ -122,19 +134,25 @@
   :defer t
   :ensure t
   :init
-  (setq markdown-enable-math t
-        markdown-enable-wiki-links t
+  (setq markdown-enable-wiki-links t
         markdown-wiki-link-alias-first nil
         markdown-wiki-link-search-subdirectories t
         markdown-link-space-sub-char " "
         markdown-header-scaling t
+        ;;markdown-enable-math t
         markdown-mouse-follow-link t)
   (add-hook 'markdown-mode-hook (lambda () ;; On markdown-mode:
                                   (setq mode-line-format nil) ;; Hide mode line
+                                  (flyspell-mode t) ;; Spellcheck
                                   (visual-line-mode t) ;; Visual wrap at column 80
                                   (visual-fill-column-mode t)
                                   (adaptive-wrap-prefix-mode t)))
   :config
+  (setq markdown-regex-italic "\\(?:^\\|[^\\]\\)\\(?1:\\(?2:[*]\\)\\(?3:[^ 
+	\\]\\|[^ 
+	*]\\(?:.\\|
+[^
+]\\)*?[^\\ ]\\)\\(?4:\\2\\)\\)") ;; Disable _ italics
   (keymap-set markdown-mode-map "M-n" (lambda ()
                                         (interactive)
                                         (call-interactively
@@ -151,7 +169,9 @@
   (keymap-set markdown-mode-map "M-P" 'markdown-previous-link))
 
 (keymap-unset evil-motion-state-map "C-o")
-(keymap-global-set "C-o" 'find-file)
+(keymap-global-set "C-o" 'project-find-file)
+(keymap-unset evil-motion-state-map "C-f")
+(keymap-global-set "C-f" 'project-find-regexp)
 
 ;; Hide math-preview on hover
 (use-package math-preview
@@ -182,6 +202,9 @@
 
 ;; Misc settings
 
+(setq gc-cons-threshold (* 50 (* 1024 1024)) ;; 50 MB GC threshold
+      read-process-output-max (* 1024 1024))
+
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 (setq visible-bell 1 ;; Disable bell
       warning-minimum-level :error ;; Disable warnings popup
@@ -196,6 +219,7 @@
 (setq scroll-margin 3 ;; Emulate vim like scrolling
       scroll-conservatively 10000
       scroll-preserve-screen-position 1)
+(pixel-scroll-precision-mode t)
 
 (setq split-width-threshold 1) ;; Always vsplit on split
 
@@ -205,10 +229,14 @@
   :ensure t
   :config
   (selectrum-mode t))
+(use-package orderless
+  :ensure t
+  :custom (completion-styles '(orderless)))
 (use-package marginalia
   :ensure t
   :config
   (marginalia-mode t))
+
 (use-package mood-line
   :ensure t
   :config
@@ -241,7 +269,7 @@
  '(evil-undo-system 'undo-redo)
  '(math-preview-scale 0.8)
  '(package-selected-packages
-   '(tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
+   '(osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces
