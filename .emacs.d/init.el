@@ -64,12 +64,13 @@
     "q" 'evil-mc-undo-all-cursors
     "s" 'evil-mc-make-cursors-at-search
     "w" 'save-buffer
-    "m" (lambda ()
-          (interactive)
-          (if (math-preview--overlays (point-min) (point-max))
-              (call-interactively 'math-preview-clear-all)
-              (call-interactively 'math-preview-all)
-              ))
+    "m" 'math-preview-all
+    ;; "m" (lambda ()
+    ;;       (interactive)
+    ;;       (if (math-preview--overlays (point-min) (point-max))
+    ;;           (call-interactively 'math-preview-clear-all)
+    ;;           (call-interactively 'math-preview-all)
+    ;;           ))
     ))
 
 (use-package evil-mc
@@ -96,18 +97,20 @@
 
 ;; LSP/Language settings
 
+(add-to-list 'auto-mode-alist '("\\.(?:hlsl\\|ns\\|shader\\|surf\\|cginc)\\'" . c-mode))
+
 (use-package lsp-mode
   :ensure t
   :init
   (evil-define-key 'normal 'global "gd" 'lsp-find-definition)
   (setq lsp-headerline-breadcrumb-enable nil)
   (setq sgml-basic-offset 4)
-  :commands lsp)
+  :commands lsp
+  :hook ( ;; Start LSP mode hooks
+         (csharp-mode . lsp-deferred)))
 (use-package csharp-mode
-  :after lsp-mode
   :ensure t)
 (use-package rust-mode
-  :after lsp-mode
   :ensure t)
 
 (use-package company
@@ -117,12 +120,15 @@
         company-idle-delay 0.0) ;; default is 0.2
   (setq company-format-margin-function 'company-text-icons-margin
         company-text-icons-add-background t)
-  (setq company-global-modes '(not markdown-mode shell-mode))
+  (setq company-global-modes '(not shell-mode))
   :config
   (keymap-unset company-active-map "C-w")
   (keymap-set company-active-map "TAB" 'company-complete-selection)
   (keymap-set company-active-map "<tab>" 'company-complete-selection)
-  (global-company-mode t))
+  (global-company-mode t)
+  :hook (markdown-mode . (lambda ()
+                           (setq-local company-backends '(company-files))
+                           )))
 
 ;; Markdown settings
 
@@ -202,6 +208,33 @@
 
 ;; Misc settings
 
+(server-start)
+(electric-pair-mode t)
+(use-package prism
+  :ensure t
+  :init
+  (setq prism-comments nil
+        prism-parens nil)
+  :config
+  (defun hex-to-rgb (hex)
+    (mapcar (lambda (x) (/ x 65535.0))
+            (color-values hex)))
+  (defun lerp (a b alpha)
+    (+ a (* alpha (- b a))))
+  (defun lerp-colors (a b alpha)
+    (list (lerp (nth 0 a) (nth 0 b) alpha)
+          (lerp (nth 1 a) (nth 1 b) alpha)
+          (lerp (nth 2 a) (nth 2 b) alpha)))
+  (add-hook 'prism-mode-hook (lambda () (prism-set-colors :num 24
+    :attribute :background
+    :colors (let ((bg (hex-to-rgb (face-attribute 'default :background))) (alpha 0.25))
+              (mapcar (lambda (color)
+                              (apply 'color-rgb-to-hex (lerp-colors bg (hex-to-rgb color) alpha)))
+                            ;;(list "red" "orange" "yellow" "green" "blue" "purple" "violet")
+                            (list "red" "blue" "orange" "green" "yellow" "purple" "brown")
+                            )
+               )))))
+
 (setq gc-cons-threshold (* 50 (* 1024 1024)) ;; 50 MB GC threshold
       read-process-output-max (* 1024 1024))
 
@@ -224,6 +257,15 @@
 (setq split-width-threshold 1) ;; Always vsplit on split
 
 (set-frame-parameter (selected-frame) 'internal-border-width 40) ;; Padding
+(setq fringe-mode 0) ;; No fringe
+
+(setq window-divider-default-places t ;; Use window-divider-mode instead of vertical-border
+      window-divider-default-bottom-width 1
+      window-divider-default-right-width 1)
+(window-divider-mode t)
+(advice-add 'load-theme :after (lambda (&rest args) ;; Set color to be the same as vertical-border theme
+                                 (set-face-attribute 'window-divider nil :foreground (face-foreground 'vertical-border))
+                                 ))
 
 (use-package selectrum
   :ensure t
@@ -256,20 +298,23 @@
 (setq desktop-save t) ;; Always save
 (desktop-save-mode t)
 
+;; Some nice base16 themes: dirtysea, apprentice
+
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(minimal-black))
- '(custom-safe-themes
-   '("184b3a18e5d1ef9c8885ceb9402c3f67d656616d76bf91f709d1676407c7cf1d" "801a567c87755fe65d0484cb2bded31a4c5bb24fd1fe0ed11e6c02254017acb2" "dbade2e946597b9cda3e61978b5fcc14fa3afa2d3c4391d477bdaeff8f5638c5" "3e335d794ed3030fefd0dbd7ff2d3555e29481fe4bbb0106ea11c660d6001767" "4780d7ce6e5491e2c1190082f7fe0f812707fc77455616ab6f8b38e796cbffa9" "cc0dbb53a10215b696d391a90de635ba1699072745bf653b53774706999208e3" "33ea268218b70aa106ba51a85fe976bfae9cf6931b18ceaf57159c558bbcd1e6" default))
+ '(custom-enabled-themes '(base16-black-metal-bathory))
+ '(custom-safe-themes t)
  '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
  '(evil-undo-system 'undo-redo)
+ '(math-preview-margin '(0 . 0))
+ '(math-preview-raise 0.3)
  '(math-preview-scale 0.8)
  '(package-selected-packages
-   '(osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
+   '(base16-theme latex-preview-pane auctex goose-theme gnugo prism osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces
