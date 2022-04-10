@@ -97,6 +97,7 @@
 
 ;; LSP/Language settings
 
+(auto-image-file-mode t)
 (add-to-list 'auto-mode-alist '("\\.(?:hlsl\\|ns\\|shader\\|surf\\|cginc)\\'" . c-mode))
 
 (use-package lsp-mode
@@ -243,6 +244,7 @@
       warning-minimum-level :error ;; Disable warnings popup
       inhibit-startup-screen t ;; Disable startup screen
       make-backup-files nil ;; Disable backup files (file~)
+      auto-save-default nil ;; Disable autosave files (#file#)
       create-lockfiles nil) ;; Disable interlock files (.#file)
 
 (setq-default truncate-lines t ;; Disable line wrapping
@@ -257,15 +259,13 @@
 (setq split-width-threshold 1) ;; Always vsplit on split
 
 (set-frame-parameter (selected-frame) 'internal-border-width 40) ;; Padding
-(setq fringe-mode 0) ;; No fringe
+(set-fringe-mode 20) ;; Fringe left padding
+(setq bookmark-set-fringe-mark nil)
 
 (setq window-divider-default-places t ;; Use window-divider-mode instead of vertical-border
       window-divider-default-bottom-width 1
       window-divider-default-right-width 1)
 (window-divider-mode t)
-(advice-add 'load-theme :after (lambda (&rest args) ;; Set color to be the same as vertical-border theme
-                                 (set-face-attribute 'window-divider nil :foreground (face-foreground 'vertical-border))
-                                 ))
 
 (use-package selectrum
   :ensure t
@@ -283,6 +283,12 @@
   :ensure t
   :config
   (mood-line-mode t))
+(use-package tab-bar-echo-area
+  :ensure t
+  :init
+  (setq tab-bar-show nil)
+  :config
+  (tab-bar-echo-area-mode 1))
 
 (use-package magit
   :defer t
@@ -300,12 +306,25 @@
 
 ;; Some nice base16 themes: dirtysea, apprentice
 
+(advice-add 'load-theme :after (lambda (&rest args) ;; Theme advice
+                                 (set-face-attribute 'window-divider nil :foreground (face-foreground 'vertical-border))
+                                 (let ((c (hex-to-rgb (face-background 'default))))
+                                   (cl-rotatef (nth 0 c) (nth 2 c))
+                                   (set-face-attribute 'math-preview-face nil :background (apply 'color-rgb-to-hex c)))
+                                 (let ((c (hex-to-rgb (face-foreground 'default))))
+                                   (cl-rotatef (nth 0 c) (nth 2 c))
+                                   (set-face-attribute 'math-preview-face nil :foreground (apply 'color-rgb-to-hex c)))
+                                 ))
+
+;; Set unicode fallback font
+(set-fontset-font "fontset-default" 'unicode (font-spec :family "NSimSun"))
+
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(base16-black-metal-bathory))
+ '(custom-enabled-themes '(base16-apathy))
  '(custom-safe-themes t)
  '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
@@ -314,7 +333,7 @@
  '(math-preview-raise 0.3)
  '(math-preview-scale 0.8)
  '(package-selected-packages
-   '(base16-theme latex-preview-pane auctex goose-theme gnugo prism osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
+   '(web-mode base16-theme latex-preview-pane auctex goose-theme gnugo prism osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces
@@ -325,4 +344,5 @@
  '(default ((t (:family "Terminus" :foundry "raster" :slant normal :weight regular :height 151 :width normal))))
  '(fringe ((t (:background nil))))
  '(markdown-italic-face ((t (:inherit italic :foreground "light coral"))))
+ '(tab-bar ((t (:inherit default :background "systembuttonface" :foreground "systembuttontext"))))
  '(variable-pitch ((t (:foundry "outline" :family "Roman")))))
