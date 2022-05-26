@@ -28,6 +28,7 @@
   :ensure t
   :init
   (setq evil-want-integration t
+        evil-want-minibuffer t
         evil-want-keybinding nil)
   (setq evil-split-window-below t
         evil-vsplit-window-right t
@@ -35,6 +36,22 @@
         evil-echo-state nil)
   :config
   (evil-mode t)
+  (evil-define-key 'normal minibuffer-mode-map (kbd "<escape>") 'keyboard-escape-quit)
+  (evil-define-key 'insert minibuffer-mode-map
+    (kbd "C-n") 'selectrum-next-candidate
+    (kbd "C-p") 'selectrum-previous-candidate
+    (kbd "C-j") 'selectrum-next-candidate
+    (kbd "C-k") 'selectrum-previous-candidate)
+  
+  (evil-ex-define-cmd "tabmove" 'tab-move)
+  (evil-ex-define-cmd "q[uit]" (lambda()
+                                 (interactive)
+                                 (if (and (> (length (tab-bar-tabs)) 1) (= (count-windows) 1))
+                                     (call-interactively 'tab-close)
+                                   (call-interactively 'evil-quit))
+                                 ))
+  (evil-define-key 'visual 'global (kbd "gc") 'comment-dwim)
+  (evil-define-key 'normal 'global (kbd "C-w x") 'tab-close)
   (evil-define-key 'insert 'global (kbd "C-v") (lambda ()
                                                  (interactive)
                                                  (evil-paste-before 1 ?+)
@@ -56,49 +73,46 @@
   (evil-leader/set-leader "<SPC>")
   (evil-leader/set-key
     "x" 'execute-extended-command
-    "b" 'bookmark-jump
     "g" 'magit-status
-    "h" 'help-for-help
     "e" 'eval-defun
     "ff" 'find-function
-    "q" 'evil-mc-undo-all-cursors
-    "s" 'evil-mc-make-cursors-at-search
+
+    ;; "q" 'evil-mc-undo-all-cursors
+    ;; "a" 'evil-mc-make-cursors-at-search
+
+    "b" 'bookmark-jump
+    "s" 'switch-to-buffer
+    "p" 'project-switch-to-buffer
+
     "w" 'save-buffer
     "m" 'math-preview-all
-    ;; "m" (lambda ()
-    ;;       (interactive)
-    ;;       (if (math-preview--overlays (point-min) (point-max))
-    ;;           (call-interactively 'math-preview-clear-all)
-    ;;           (call-interactively 'math-preview-all)
-    ;;           ))
     ))
 
-(use-package evil-mc
-  :after evil-leader
-  :ensure t
-  :init
-  (setq evil-mc-enable-bar-cursor nil
-        evil-mc-undo-cursors-on-keyboard-quit t)
-  :config
-  (keymap-unset evil-mc-key-map "<normal-state> M-n")
-  (keymap-unset evil-mc-key-map "<normal-state> M-p")
-  (global-evil-mc-mode t)
-
-  (defun evil-mc-make-cursors-at-search ()
-    (interactive)
-    (let ((search (car evil-search-forward-history)))
-      (setq evil-mc-pattern (cons (evil-ex-make-search-pattern search) nil))
-      (evil-mc-make-cursors-for-all)
-      (let ((goto (or (evil-mc-find-next-cursor) (evil-mc-find-prev-cursor))))
-        (evil-mc-goto-cursor goto nil)
-        ))))
-
-(evil-global-set-key 'visual (kbd "gc") 'comment-dwim)
+;; (use-package evil-mc
+;;   :after evil-leader
+;;   :ensure t
+;;   :init
+;;   (setq evil-mc-enable-bar-cursor nil
+;;         evil-mc-undo-cursors-on-keyboard-quit t)
+;;   :config
+;;   (keymap-unset evil-mc-key-map "<normal-state> M-n")
+;;   (keymap-unset evil-mc-key-map "<normal-state> M-p")
+;;   (global-evil-mc-mode t)
+;;
+;;   (defun evil-mc-make-cursors-at-search ()
+;;     (interactive)
+;;     (let ((search (car evil-search-forward-history)))
+;;       (setq evil-mc-pattern (cons (evil-ex-make-search-pattern search) nil))
+;;       (evil-mc-make-cursors-for-all)
+;;       (let ((goto (or (evil-mc-find-next-cursor) (evil-mc-find-prev-cursor))))
+;;         (evil-mc-goto-cursor goto nil)
+;;         ))))
 
 ;; LSP/Language settings
 
 (auto-image-file-mode t)
-(add-to-list 'auto-mode-alist '("\\.(?:hlsl\\|ns\\|shader\\|surf\\|cginc)\\'" . c-mode))
+(add-to-list 'auto-mode-alist '("\\.(?:hlsl\\|ns\\|shader\\|surf\\|cginc\\|compute)\\'" . c-mode))
+(add-to-list 'auto-mode-alist '("\\.toml\\'" . conf-mode))
 
 (use-package lsp-mode
   :ensure t
@@ -107,8 +121,9 @@
   (setq lsp-headerline-breadcrumb-enable nil)
   (setq sgml-basic-offset 4)
   :commands lsp
-  :hook ( ;; Start LSP mode hooks
-         (csharp-mode . lsp-deferred)))
+  ;; :hook ( ;; Start LSP mode hooks
+  ;;        (csharp-mode . lsp-deferred)))
+  )
 (use-package csharp-mode
   :ensure t)
 (use-package rust-mode
@@ -127,11 +142,15 @@
   (keymap-set company-active-map "TAB" 'company-complete-selection)
   (keymap-set company-active-map "<tab>" 'company-complete-selection)
   (global-company-mode t)
+  (delete 'company-clang company-backends)
   :hook (markdown-mode . (lambda ()
                            (setq-local company-backends '(company-files))
                            )))
 
 ;; Markdown settings
+
+(setq flyspell-issue-message-flag nil
+      flyspell-issue-welcome-flag nil)
 
 (use-package visual-fill-column
   :ensure t)
@@ -250,6 +269,8 @@
 (setq-default truncate-lines t ;; Disable line wrapping
               indent-tabs-mode nil ;; Disable tabs
               tab-width 4)
+(setq c-basic-offset 4)
+(push '(c-mode . "linux") c-default-style)
 
 (setq scroll-margin 3 ;; Emulate vim like scrolling
       scroll-conservatively 10000
@@ -297,10 +318,13 @@
 ;; Save window position/dimensions
 
 (setq desktop-path (list user-emacs-directory)) ;; Save in .emacs.d
-(setq desktop-buffers-not-to-save ".*"
-      desktop-files-not-to-save ".*") ;; Don't save buffers
-(add-hook 'desktop-after-read-hook (lambda () ;; Don't save tabs
-                                     (tab-bar-close-other-tabs)))
+;; (setq desktop-buffers-not-to-save ".*"
+;;       desktop-files-not-to-save ".*") ;; Don't save buffers
+;; (add-hook 'desktop-after-read-hook (lambda () ;; Don't save tabs
+;;                                      (tab-bar-close-other-tabs)))
+;; (setq desktop-buffers-not-to-save-function (lambda (b)
+;;                                              (get-buffer-window b)))
+(setq desktop-restore-eager 5)
 (setq desktop-save t) ;; Always save
 (desktop-save-mode t)
 
@@ -324,7 +348,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(base16-apathy))
+ '(custom-enabled-themes '(base16-horizon-dark))
  '(custom-safe-themes t)
  '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
@@ -333,7 +357,7 @@
  '(math-preview-raise 0.3)
  '(math-preview-scale 0.8)
  '(package-selected-packages
-   '(web-mode base16-theme latex-preview-pane auctex goose-theme gnugo prism osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode evil-mc-extras lsp-ui lsp-mode evil-leader evil))
+   '(web-mode base16-theme latex-preview-pane auctex goose-theme gnugo prism osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode lsp-ui lsp-mode evil-leader evil))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces
@@ -343,6 +367,6 @@
  ;; If there is more than one, they won't work right.
  '(default ((t (:family "Terminus" :foundry "raster" :slant normal :weight regular :height 151 :width normal))))
  '(fringe ((t (:background nil))))
- '(markdown-italic-face ((t (:inherit italic :foreground "light coral"))))
+ '(markdown-italic-face ((t (:inherit (italic font-lock-keyword-face) :underline t))))
  '(tab-bar ((t (:inherit default :background "systembuttonface" :foreground "systembuttontext"))))
- '(variable-pitch ((t (:foundry "outline" :family "Roman")))))
+ '(variable-pitch ((t (:foundry "outline" :family "Modern")))))
