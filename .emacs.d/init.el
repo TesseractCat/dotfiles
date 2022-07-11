@@ -21,6 +21,8 @@
 
 ;; Display loading time/order for packages
 ;; (setq use-package-verbose t)
+(setq gc-cons-threshold (* 50 (* 1024 1024)) ;; 50 MB GC threshold
+      read-process-output-max (* 1024 1024))
 
 ;; Evil mode settings
 
@@ -36,21 +38,34 @@
         evil-echo-state nil)
   :config
   (evil-mode t)
-  (evil-define-key 'normal minibuffer-mode-map (kbd "<escape>") 'keyboard-escape-quit)
+
+  (evil-define-key 'normal minibuffer-mode-map (kbd "<escape>") 'abort-recursive-edit)
+  (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
   (evil-define-key 'insert minibuffer-mode-map
     (kbd "C-n") 'selectrum-next-candidate
     (kbd "C-p") 'selectrum-previous-candidate
     (kbd "C-j") 'selectrum-next-candidate
     (kbd "C-k") 'selectrum-previous-candidate)
   
-  (evil-ex-define-cmd "tabmove" 'tab-move)
-  (evil-ex-define-cmd "q[uit]" (lambda()
+  (evil-ex-define-cmd "q[uit]" (lambda ()
                                  (interactive)
                                  (if (and (> (length (tab-bar-tabs)) 1) (= (count-windows) 1))
                                      (call-interactively 'tab-close)
                                    (call-interactively 'evil-quit))
                                  ))
+  (evil-ex-define-cmd "ls" 'ibuffer)
+
+  (evil-define-key '(normal visual) 'global
+    (kbd "H") 'evil-first-non-blank
+    (kbd "L") 'evil-end-of-line)
   (evil-define-key 'visual 'global (kbd "gc") 'comment-dwim)
+  (evil-define-key 'normal 'global (kbd "M-=") 'universal-argument)
+
+  (evil-define-key 'normal 'global
+    (kbd "gd") 'xref-find-definitions
+    (kbd "K") 'eldoc-doc-buffer)
+
   (evil-define-key 'normal 'global (kbd "C-w x") 'tab-close)
   (evil-define-key 'insert 'global (kbd "C-v") (lambda ()
                                                  (interactive)
@@ -64,6 +79,12 @@
   :config
   (delete 'evil-mc evil-collection-mode-list)
   (evil-collection-init))
+
+(use-package evil-surround
+  :after evil
+  :ensure t
+  :config
+  (global-evil-surround-mode 1))
 
 (use-package evil-leader
   :after evil-collection
@@ -83,10 +104,19 @@
     "b" 'bookmark-jump
     "s" 'switch-to-buffer
     "p" 'project-switch-to-buffer
+    "P" 'project-switch-project
 
     "w" 'save-buffer
     "m" 'math-preview-all
     ))
+
+(use-package drag-stuff
+  :ensure t
+  :config
+  (evil-define-key '(normal visual) 'global
+    (kbd "M-k") 'drag-stuff-up
+    (kbd "M-j") 'drag-stuff-down)
+  (drag-stuff-global-mode t))
 
 ;; (use-package evil-mc
 ;;   :after evil-leader
@@ -111,22 +141,30 @@
 ;; LSP/Language settings
 
 (auto-image-file-mode t)
-(add-to-list 'auto-mode-alist '("\\.(?:hlsl\\|ns\\|shader\\|surf\\|cginc\\|compute)\\'" . c-mode))
+(add-to-list 'auto-mode-alist '("\\.\\(?:hlsl\\|ns\\|shader\\|surf\\|cginc\\|compute\\)\\'" . c-mode))
 (add-to-list 'auto-mode-alist '("\\.toml\\'" . conf-mode))
 
-(use-package lsp-mode
+(use-package eglot
   :ensure t
   :init
-  (evil-define-key 'normal 'global "gd" 'lsp-find-definition)
-  (setq lsp-headerline-breadcrumb-enable nil)
-  (setq sgml-basic-offset 4)
-  :commands lsp
-  ;; :hook ( ;; Start LSP mode hooks
-  ;;        (csharp-mode . lsp-deferred)))
-  )
+  (setq eldoc-echo-area-display-truncation-message nil
+        eldoc-echo-area-prefer-doc-buffer t
+        eldoc-echo-area-use-multiline-p 1)
+  :config
+  (setq eglot-ignored-server-capabilites '(:documentHighlightProvider))
+
+  (evil-define-key 'normal eglot-mode-map
+    (kbd "M-p") 'flymake-goto-prev-error
+    (kbd "M-n") 'flymake-goto-next-error)
+  :commands eglot)
+;; (use-package eldoc-box
+;;   :ensure t
+;;   :hook (eldoc-mode . eldoc-box-hover-at-point-mode))
 (use-package csharp-mode
+  :defer t
   :ensure t)
 (use-package rust-mode
+  :defer t
   :ensure t)
 
 (use-package company
@@ -153,8 +191,10 @@
       flyspell-issue-welcome-flag nil)
 
 (use-package visual-fill-column
+  :defer t
   :ensure t)
 (use-package adaptive-wrap
+  :defer t
   :ensure t)
 (use-package markdown-mode
   :defer t
@@ -174,25 +214,27 @@
                                   (visual-fill-column-mode t)
                                   (adaptive-wrap-prefix-mode t)))
   :config
+  (setq markdown-link-space-sub-char " ")
   (setq markdown-regex-italic "\\(?:^\\|[^\\]\\)\\(?1:\\(?2:[*]\\)\\(?3:[^ 
 	\\]\\|[^ 
 	*]\\(?:.\\|
 [^
 ]\\)*?[^\\ ]\\)\\(?4:\\2\\)\\)") ;; Disable _ italics
-  (keymap-set markdown-mode-map "M-n" (lambda ()
-                                        (interactive)
-                                        (call-interactively
-                                         'markdown-next-visible-heading)
-                                        (call-interactively
-                                         'evil-scroll-line-to-top)))
-  (keymap-set markdown-mode-map "M-p" (lambda ()
-                                        (interactive)
-                                        (call-interactively
-                                         'markdown-previous-visible-heading)
-                                        (call-interactively
-                                         'evil-scroll-line-to-top)))
-  (keymap-set markdown-mode-map "M-N" 'markdown-next-link)
-  (keymap-set markdown-mode-map "M-P" 'markdown-previous-link))
+  (evil-define-key 'normal markdown-mode-map
+    (kbd "M-n") (lambda ()
+            (interactive)
+            (call-interactively
+             'markdown-next-visible-heading)
+            (call-interactively
+             'evil-scroll-line-to-top))
+    (kbd "M-p") (lambda ()
+            (interactive)
+            (call-interactively
+             'markdown-previous-visible-heading)
+            (call-interactively
+             'evil-scroll-line-to-top))
+    (kbd "M-N") 'markdown-next-link
+    (kbd "M-P") 'markdown-previous-link))
 
 (keymap-unset evil-motion-state-map "C-o")
 (keymap-global-set "C-o" 'project-find-file)
@@ -201,6 +243,7 @@
 
 ;; Hide math-preview on hover
 (use-package math-preview
+  :defer t
   :ensure t
   :config
   (defvar-local math-preview-hover--prev-range nil)
@@ -228,14 +271,20 @@
 
 ;; Misc settings
 
+(use-package ansi-color
+  :init
+  (setq comint-terminfo-terminal "ansi")
+  (add-to-list 'comint-output-filter-functions 'ansi-color-process-output)
+  :hook (shell-mode . ansi-color-for-comint-mode-on))
+
 (server-start)
 (electric-pair-mode t)
 (use-package prism
+  :defer t
   :ensure t
   :init
   (setq prism-comments nil
         prism-parens nil)
-  :config
   (defun hex-to-rgb (hex)
     (mapcar (lambda (x) (/ x 65535.0))
             (color-values hex)))
@@ -245,6 +294,7 @@
     (list (lerp (nth 0 a) (nth 0 b) alpha)
           (lerp (nth 1 a) (nth 1 b) alpha)
           (lerp (nth 2 a) (nth 2 b) alpha)))
+  :config
   (add-hook 'prism-mode-hook (lambda () (prism-set-colors :num 24
     :attribute :background
     :colors (let ((bg (hex-to-rgb (face-attribute 'default :background))) (alpha 0.25))
@@ -255,10 +305,8 @@
                             )
                )))))
 
-(setq gc-cons-threshold (* 50 (* 1024 1024)) ;; 50 MB GC threshold
-      read-process-output-max (* 1024 1024))
+(setq-default buffer-file-coding-system 'prefer-utf-8-dos)
 
-(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 (setq visible-bell 1 ;; Disable bell
       warning-minimum-level :error ;; Disable warnings popup
       inhibit-startup-screen t ;; Disable startup screen
@@ -269,15 +317,38 @@
 (setq-default truncate-lines t ;; Disable line wrapping
               indent-tabs-mode nil ;; Disable tabs
               tab-width 4)
-(setq c-basic-offset 4)
-(push '(c-mode . "linux") c-default-style)
+(use-package cc-mode
+  :config
+  (setq c-basic-offset 4)
+  (push '(c-mode . "linux") c-default-style))
+
+(use-package window
+  :config
+  (setq split-height-threshold 0
+        split-width-threshold 0
+        help-window-select t) ;; Always select help split
+  (winner-mode t) ;; Track window configuration
+
+  (defun automatic-window-split (&optional window)
+    "Split sensibly based on ratio"
+    (interactive)
+    (let ((window (or window (get-buffer-window))))
+    (cond
+     ((and (> (window-width window)
+              (* 2 (window-height window)))
+           (window-splittable-p window 'horizontal))
+      (with-selected-window window
+        (split-window-right)))
+     ((window-splittable-p window)
+      (with-selected-window window
+        (split-window-below))))))
+
+  (setq split-window-preferred-function 'automatic-window-split))
 
 (setq scroll-margin 3 ;; Emulate vim like scrolling
       scroll-conservatively 10000
       scroll-preserve-screen-position 1)
 (pixel-scroll-precision-mode t)
-
-(setq split-width-threshold 1) ;; Always vsplit on split
 
 (set-frame-parameter (selected-frame) 'internal-border-width 40) ;; Padding
 (set-fringe-mode 20) ;; Fringe left padding
@@ -307,6 +378,11 @@
 (use-package tab-bar-echo-area
   :ensure t
   :init
+  (evil-define-key 'normal 'global (kbd "C-t") 'tab-bar-new-tab)
+  (keymap-global-set "C-<tab>" 'tab-bar-switch-to-next-tab)
+  (keymap-global-set "C-S-<tab>" 'tab-bar-switch-to-prev-tab)
+  (keymap-global-set "M-<right>" 'tab-bar-move-tab)
+  (keymap-global-set "M-<left>" 'tab-bar-move-tab-backward)
   (setq tab-bar-show nil)
   :config
   (tab-bar-echo-area-mode 1))
@@ -315,18 +391,47 @@
   :defer t
   :ensure t)
 
+;; Global zoom
+
+(defun zoom-frame (&optional amt)
+  (let ((height (+ (face-attribute 'default :height) amt)))
+    (set-face-attribute 'default nil :height height)
+    (message "Zoomed by %d -> Height %d" amt height)
+    ))
+
+(defun zoom-frame-in ()
+  "Globally zoom in."
+  (interactive)
+  (zoom-frame 20))
+(defun zoom-frame-out ()
+  "Globally zoom out."
+  (interactive)
+  (zoom-frame -20))
+
 ;; Save window position/dimensions
 
-(setq desktop-path (list user-emacs-directory)) ;; Save in .emacs.d
-;; (setq desktop-buffers-not-to-save ".*"
-;;       desktop-files-not-to-save ".*") ;; Don't save buffers
-;; (add-hook 'desktop-after-read-hook (lambda () ;; Don't save tabs
-;;                                      (tab-bar-close-other-tabs)))
-;; (setq desktop-buffers-not-to-save-function (lambda (b)
-;;                                              (get-buffer-window b)))
-(setq desktop-restore-eager 5)
-(setq desktop-save t) ;; Always save
-(desktop-save-mode t)
+(use-package desktop
+  :init
+  (setq desktop-path (list user-emacs-directory)) ;; Save in .emacs.d
+  ;; (setq desktop-buffers-not-to-save ".*"
+  ;;       desktop-files-not-to-save ".*") ;; Don't save buffers
+  ;; (add-hook 'desktop-after-read-hook (lambda () ;; Don't save tabs
+  ;;                                      (tab-bar-close-other-tabs)))
+  ;; (setq desktop-buffers-not-to-save-function (lambda (b)
+  ;;                                              (get-buffer-window b)))
+  (setq desktop-restore-eager 5
+        desktop-save t) ;; Always save
+
+  ;; Never save theme elements
+  (push '(foreground-color . :never) frameset-filter-alist)
+  (push '(background-color . :never) frameset-filter-alist)
+  (push '(font . :never) frameset-filter-alist)
+  (push '(cursor-color . :never) frameset-filter-alist)
+  (push '(border-color . :never) frameset-filter-alist)
+  (push '(ns-appearance . :never) frameset-filter-alist)
+  (push '(background-mode . :never) frameset-filter-alist)
+  :config
+  (desktop-save-mode t))
 
 ;; Some nice base16 themes: dirtysea, apprentice
 
@@ -348,7 +453,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(base16-horizon-dark))
+ '(custom-enabled-themes '(base16-rose-pine))
  '(custom-safe-themes t)
  '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
@@ -356,8 +461,8 @@
  '(math-preview-margin '(0 . 0))
  '(math-preview-raise 0.3)
  '(math-preview-scale 0.8)
- '(package-selected-packages
-   '(web-mode base16-theme latex-preview-pane auctex goose-theme gnugo prism osm vil tao-theme use-package adaptive-wrap visual-fill-column math-preview mood-line minimal-theme csharp-mode lsp-ui lsp-mode evil-leader evil))
+ '(menu-bar-mode nil)
+ '(package-selected-packages '(web-mode base16-theme prism vil use-package))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces
@@ -365,8 +470,12 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:family "Terminus" :foundry "raster" :slant normal :weight regular :height 151 :width normal))))
+ '(default ((t (:family "Terminus" :slant normal :weight regular :height 151 :width normal))))
+ '(fixed-pitch-serif ((t (:weight bold :family "Terminus"))))
+ '(font-lock-comment-face ((t (:weight bold))))
  '(fringe ((t (:background nil))))
+ '(info-menu-header ((t (:inherit variable-pitch :weight bold :height 1.25))))
  '(markdown-italic-face ((t (:inherit (italic font-lock-keyword-face) :underline t))))
  '(tab-bar ((t (:inherit default :background "systembuttonface" :foreground "systembuttontext"))))
+ '(tooltip ((t (:inherit default :foreground "#eee"))))
  '(variable-pitch ((t (:foundry "outline" :family "Modern")))))
