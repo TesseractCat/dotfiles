@@ -79,22 +79,25 @@
   :config
   (delete 'evil-mc evil-collection-mode-list)
   (evil-collection-init))
-
 (use-package evil-surround
   :after evil
   :ensure t
   :config
   (global-evil-surround-mode 1))
-
 (use-package evil-leader
   :after evil-collection
   :ensure t
   :config
+  (defun project-vc-split ()
+    (interactive)
+    (automatic-window-split)
+    (project-vc-dir))
+
   (global-evil-leader-mode)
   (evil-leader/set-leader "<SPC>")
   (evil-leader/set-key
     "x" 'execute-extended-command
-    "g" 'magit-status
+    "g" 'project-vc-split
     "e" 'eval-defun
     "ff" 'find-function
 
@@ -192,7 +195,8 @@
 
 (use-package visual-fill-column
   :defer t
-  :ensure t)
+  :ensure t
+  :custom (visual-fill-column-center-text t))
 (use-package adaptive-wrap
   :defer t
   :ensure t)
@@ -209,6 +213,7 @@
         markdown-mouse-follow-link t)
   (add-hook 'markdown-mode-hook (lambda () ;; On markdown-mode:
                                   (setq mode-line-format nil) ;; Hide mode line
+                                  (setq fill-column 80)
                                   (flyspell-mode t) ;; Spellcheck
                                   (visual-line-mode t) ;; Visual wrap at column 80
                                   (visual-fill-column-mode t)
@@ -271,39 +276,15 @@
 
 ;; Misc settings
 
+(server-start)
+(electric-pair-mode t)
+(defalias 'yes-or-no-p 'y-or-n-p) ;; Replace yes/no prompts with y/n
+
 (use-package ansi-color
   :init
   (setq comint-terminfo-terminal "ansi")
   (add-to-list 'comint-output-filter-functions 'ansi-color-process-output)
   :hook (shell-mode . ansi-color-for-comint-mode-on))
-
-(server-start)
-(electric-pair-mode t)
-(use-package prism
-  :defer t
-  :ensure t
-  :init
-  (setq prism-comments nil
-        prism-parens nil)
-  (defun hex-to-rgb (hex)
-    (mapcar (lambda (x) (/ x 65535.0))
-            (color-values hex)))
-  (defun lerp (a b alpha)
-    (+ a (* alpha (- b a))))
-  (defun lerp-colors (a b alpha)
-    (list (lerp (nth 0 a) (nth 0 b) alpha)
-          (lerp (nth 1 a) (nth 1 b) alpha)
-          (lerp (nth 2 a) (nth 2 b) alpha)))
-  :config
-  (add-hook 'prism-mode-hook (lambda () (prism-set-colors :num 24
-    :attribute :background
-    :colors (let ((bg (hex-to-rgb (face-attribute 'default :background))) (alpha 0.25))
-              (mapcar (lambda (color)
-                              (apply 'color-rgb-to-hex (lerp-colors bg (hex-to-rgb color) alpha)))
-                            ;;(list "red" "orange" "yellow" "green" "blue" "purple" "violet")
-                            (list "red" "blue" "orange" "green" "yellow" "purple" "brown")
-                            )
-               )))))
 
 (setq-default buffer-file-coding-system 'prefer-utf-8-dos)
 
@@ -387,9 +368,9 @@
   :config
   (tab-bar-echo-area-mode 1))
 
-(use-package magit
-  :defer t
-  :ensure t)
+(use-package epa
+  :config
+  (setq epa-pinentry-mode 'loopback))
 
 ;; Global zoom
 
@@ -431,19 +412,36 @@
   (push '(ns-appearance . :never) frameset-filter-alist)
   (push '(background-mode . :never) frameset-filter-alist)
   :config
-  (desktop-save-mode t))
+  (desktop-save-mode t)
+  (defun desktop-force-quit ()
+    "Ignores desktop-save-mode, remove's the desktop file, and quits."
+    (interactive)
+    (desktop-save-mode-off)
+    (desktop-remove)
+    (kill-emacs)))
+
+;; Highlight keywords
+
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (font-lock-add-keywords nil
+                                    '(("\\<\\(FIXME\\|TODO\\|BUG\\):" 1 font-lock-warning-face t)))))
 
 ;; Some nice base16 themes: dirtysea, apprentice
 
-(advice-add 'load-theme :after (lambda (&rest args) ;; Theme advice
-                                 (set-face-attribute 'window-divider nil :foreground (face-foreground 'vertical-border))
-                                 (let ((c (hex-to-rgb (face-background 'default))))
-                                   (cl-rotatef (nth 0 c) (nth 2 c))
-                                   (set-face-attribute 'math-preview-face nil :background (apply 'color-rgb-to-hex c)))
-                                 (let ((c (hex-to-rgb (face-foreground 'default))))
-                                   (cl-rotatef (nth 0 c) (nth 2 c))
-                                   (set-face-attribute 'math-preview-face nil :foreground (apply 'color-rgb-to-hex c)))
-                                 ))
+(use-package base16-theme
+  :ensure t
+  :config
+  (advice-add 'load-theme :after (lambda (&rest args) ;; Theme advice
+                                   (set-face-attribute 'window-divider nil :foreground (face-foreground 'vertical-border))
+                                   (let ((c (hex-to-rgb (face-background 'default))))
+                                     (cl-rotatef (nth 0 c) (nth 2 c))
+                                     (set-face-attribute 'math-preview-face nil :background (apply 'color-rgb-to-hex c)))
+                                   (let ((c (hex-to-rgb (face-foreground 'default))))
+                                     (cl-rotatef (nth 0 c) (nth 2 c))
+                                     (set-face-attribute 'math-preview-face nil :foreground (apply 'color-rgb-to-hex c)))
+                                   ))
+  )
 
 ;; Set unicode fallback font
 (set-fontset-font "fontset-default" 'unicode (font-spec :family "NSimSun"))
@@ -453,7 +451,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(base16-rose-pine))
+ '(custom-enabled-themes '(base16-da-one-gray))
  '(custom-safe-themes t)
  '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
@@ -462,7 +460,7 @@
  '(math-preview-raise 0.3)
  '(math-preview-scale 0.8)
  '(menu-bar-mode nil)
- '(package-selected-packages '(web-mode base16-theme prism vil use-package))
+ '(package-selected-packages '(vil use-package))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces
