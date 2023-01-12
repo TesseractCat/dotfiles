@@ -57,6 +57,10 @@
   (evil-ex-define-cmd "ls" 'ibuffer)
 
   (evil-define-key '(normal visual) 'global
+    (kbd "C--") 'zoom-frame-out
+    (kbd "C-=") 'zoom-frame-in)
+
+  (evil-define-key '(normal visual) 'global
     (kbd "H") 'evil-first-non-blank
     (kbd "L") 'evil-end-of-line)
   (evil-define-key 'visual 'global (kbd "gc") 'comment-dwim)
@@ -393,7 +397,8 @@
 
 (use-package desktop
   :init
-  (setq desktop-path (list user-emacs-directory)) ;; Save in .emacs.d
+  (setq desktop-path (list user-emacs-directory)
+        desktop-dirname user-emacs-directory) ;; Save in .emacs.d
   ;; (setq desktop-buffers-not-to-save ".*"
   ;;       desktop-files-not-to-save ".*") ;; Don't save buffers
   ;; (add-hook 'desktop-after-read-hook (lambda () ;; Don't save tabs
@@ -451,7 +456,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(base16-da-one-gray))
+ '(custom-enabled-themes '(base16-monokai))
  '(custom-safe-themes t)
  '(display-line-numbers-type 'relative)
  '(evil-start-of-line t)
@@ -469,6 +474,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(default ((t (:family "Terminus" :slant normal :weight regular :height 151 :width normal))))
+ '(dictionary-word-definition-face ((t (:family "Times New Roman"))))
  '(fixed-pitch-serif ((t (:weight bold :family "Terminus"))))
  '(font-lock-comment-face ((t (:weight bold))))
  '(fringe ((t (:background nil))))
