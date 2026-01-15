@@ -19,14 +19,14 @@
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
   # Pin nvidia version for latest kernel (probably can remove later)
-  hardware.nvidia.open = false;
-  hardware.nvidia.package = config.boot.kernelPackages.nvidiaPackages.mkDriver {
-    version = "580.65.06";
-    sha256_64bit = "sha256-BLEIZ69YXnZc+/3POe1fS9ESN1vrqwFy6qGHxqpQJP8=";
-    openSha256 = "sha256-BKe6LQ1ZSrHUOSoV6UCksUE0+TIa0WcCHZv4lagfIgA=";
-    settingsSha256 = "sha256-9PWmj9qG/Ms8Ol5vLQD3Dlhuw4iaFtVHNC0hSyMCU24=";
-    usePersistenced = false;
-  };
+  hardware.nvidia.open = true;
+  # hardware.nvidia.package = config.boot.kernelPackages.nvidiaPackages.mkDriver {
+  #   version = "580.65.06";
+  #   sha256_64bit = "sha256-BLEIZ69YXnZc+/3POe1fS9ESN1vrqwFy6qGHxqpQJP8=";
+  #   openSha256 = "sha256-BKe6LQ1ZSrHUOSoV6UCksUE0+TIa0WcCHZv4lagfIgA=";
+  #   settingsSha256 = "sha256-9PWmj9qG/Ms8Ol5vLQD3Dlhuw4iaFtVHNC0hSyMCU24=";
+  #   usePersistenced = false;
+  # };
   hardware.nvidia.powerManagement.enable = true;
   hardware.nvidia.powerManagement.finegrained = false; # Use coarse-grained power management instead
   boot.extraModprobeConfig = ''
@@ -62,6 +62,7 @@
     LC_TIME = "en_US.UTF-8";
   };
   
+  # Set up input method editor
   i18n.inputMethod = {
     type = "fcitx5";
     enable = true;
@@ -92,6 +93,7 @@
   services.desktopManager.plasma6.enable = true;
 
   # Add CJK fonts
+  # FIXME: This is causing issues with apostrophes, commas.
   fonts.packages = with pkgs; [
     noto-fonts-cjk-sans
   ];
@@ -163,6 +165,7 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     vim
+    git
     wget
     stow
 
