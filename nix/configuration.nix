@@ -63,22 +63,22 @@
   };
   
   # Set up input method editor
-  i18n.inputMethod = {
-    type = "fcitx5";
-    enable = true;
-    fcitx5 = {
-      waylandFrontend = true;
-      plasma6Support = true;
-      addons = with pkgs; [
-        rime-data
-        kdePackages.fcitx5-qt
-        fcitx5-mozc
-        fcitx5-rime
-        fcitx5-chinese-addons
-        fcitx5-gtk
-      ];
-    };
-  };
+  # i18n.inputMethod = {
+  #   type = "fcitx5";
+  #   enable = true;
+  #   fcitx5 = {
+  #     waylandFrontend = true;
+  #     plasma6Support = true;
+  #     addons = with pkgs; [
+  #       rime-data
+  #       kdePackages.fcitx5-qt
+  #       fcitx5-mozc
+  #       fcitx5-rime
+  #       fcitx5-chinese-addons
+  #       fcitx5-gtk
+  #     ];
+  #   };
+  # };
 
   # Enable the X11 windowing system.
   services.xserver.enable = true;
@@ -170,8 +170,8 @@
     stow
 
     blender
-    lutris
     anki
+    lutris
 
     podman
     distrobox
@@ -183,7 +183,7 @@
     kdePackages.qtstyleplugin-kvantum
   ];
 
-  # Install firefox.
+  # Install firefox
   programs.firefox.enable = true;
   programs.firefox.nativeMessagingHosts.packages = [ pkgs.firefoxpwa ];
 
